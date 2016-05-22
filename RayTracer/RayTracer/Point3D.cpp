@@ -1,36 +1,46 @@
 #include "Point3D.h"
 
-long double Point3D::x() const
+double Point3D::x() const
 {
     return _x;
 }
 
-long double Point3D::y() const
+double Point3D::y() const
 {
     return _y;
 }
 
-long double Point3D::z() const
+double Point3D::z() const
 {
     return _z;
 }
 
-void Point3D::setX(long double newX)
+double Point3D::coordAxis(Axis axis) const
+{
+    if (axis == 0)
+        return _x;
+    if (axis == 1)
+        return _y;
+    if (axis == 2)
+        return _z;
+}
+
+void Point3D::setX(double newX)
 {
     _x = newX;
 }
 
-void Point3D::setY(long double newY)
+void Point3D::setY(double newY)
 {
     _y = newY;
 }
 
-void Point3D::setZ(long double newZ)
+void Point3D::setZ(double newZ)
 {
     _z = newZ;
 }
 
-long double Point3D::len()
+double Point3D::len()
 {
     return sqrt(_x * _x + _y * _y + _z * _z);
 }
@@ -52,12 +62,12 @@ Point3D Point3D::operator^(const Point3D & p)
         _x * p.y() - _y * p.x());
 }
 
-long double Point3D::operator*(const Point3D & p)
+double Point3D::operator*(const Point3D & p)
 {
     return _x * p.x() + _y * p.y() + _z * p.z();
 }
 
-Point3D Point3D::operator*(long double k)
+Point3D Point3D::operator*(double k)
 {
     return Point3D(k * _x, k * _y, k * _z);
 }
@@ -74,7 +84,7 @@ bool Point3D::operator!=(const Point3D & p)
 
 std::istream& operator>>(std::istream& is, Point3D& p)
 {
-    long double x, y, z;
+    double x, y, z;
     is >> x >> y >> z;
     p.setX(x);
     p.setY(y);

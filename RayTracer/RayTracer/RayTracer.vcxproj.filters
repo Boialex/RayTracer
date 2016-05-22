@@ -51,13 +51,16 @@
     <ClCompile Include="Quadrangle.cpp">
       <Filter>Файлы исходного кода\Geometry</Filter>
     </ClCompile>
-    <ClCompile Include="Parallelogramm.cpp">
-      <Filter>Файлы исходного кода\Geometry</Filter>
-    </ClCompile>
     <ClCompile Include="KDTree.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
     <ClCompile Include="Box.cpp">
+      <Filter>Файлы исходного кода\Geometry</Filter>
+    </ClCompile>
+    <ClCompile Include="HelpFunc.cpp">
+      <Filter>Файлы исходного кода</Filter>
+    </ClCompile>
+    <ClCompile Include="Reader.cpp">
       <Filter>Файлы исходного кода</Filter>
     </ClCompile>
   </ItemGroup>
@@ -89,16 +92,19 @@
     <ClInclude Include="Color.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="Parallelogramm.h">
-      <Filter>Заголовочные файлы\Geometry</Filter>
-    </ClInclude>
     <ClInclude Include="Quadrangle.h">
       <Filter>Заголовочные файлы\Geometry</Filter>
     </ClInclude>
     <ClInclude Include="KDTree.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="HelpFunc.h">
+      <Filter>Заголовочные файлы</Filter>
+    </ClInclude>
     <ClInclude Include="Box.h">
+      <Filter>Заголовочные файлы\Geometry</Filter>
+    </ClInclude>
+    <ClInclude Include="Reader.h">
       <Filter>Заголовочные файлы</Filter>
     </ClInclude>
   </ItemGroup>

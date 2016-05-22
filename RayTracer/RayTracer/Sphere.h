@@ -4,26 +4,26 @@
 class Sphere : public IFigure {
 public:
     Sphere() {};
-    Sphere(const long double reflection, const long double refraction, const Color color, const Point3D O, const long double r);
+    Sphere(const double reflect, const double refract, const Color color, const Point3D O, const double r);
 
-    long double r() const;
+    double r() const;
     Point3D O() const;
-    long double reflection() const;
-    long double refraction() const;
+    double reflect() const;
+    double refract() const;
     Color color() const;
 
-    void setRadius(const long double r);
+    void setRadius(const double r);
     void setCenter(const Point3D O);
-    void setParams(const long double reflection, const long double refraction, const Color color);
+    void setParams(const double reflect, const double refract, const Color color);
 
     Point3D normal(const Point3D & p = Point3D()) const;
-    bool rayIntersect(const Ray & ray, Point3D & intersect) const;
+    bool rayIntersect(const Ray & ray, IntersectionData & data);
     Box getBox() const;
 
 private:
-    long double _reflection;
-    long double _refraction;
+    double _reflect;
+    double _refract;
     Color _color;
-    long double _r;
+    double _r;
     Point3D _O;
 };

@@ -1,41 +1,70 @@
 #include "Box.h"
+#include <algorithm>
 
-Box::Box()
+
+
+KDPlane::KDPlane(const Axis axis, const double coord)
 {
-    _A = Point3D();
-    _B = Point3D();
+    _axis = axis;
+    _coord = coord;
+
+    if (_axis == Axis::x) 
+        n = Point3D(1, 0, 0);
+    else if (_axis == Axis::y) 
+        n = Point3D(0, 1, 0);
+    else if (_axis == Axis::z) 
+        n = Point3D(0, 0, 1);
 }
 
-Box::Box(const Point3D A, const Point3D B)
+double KDPlane::distance(const Point3D point) const
 {
-    _A = A;
-    _B = B;
+    if (_axis == Axis::x)
+        return point.x() - _coord;    
+    else if (_axis == Axis::y) 
+        return point.y() - _coord;  
+    else if (_axis == Axis::z) 
+        return point.z() - _coord;
+    return 0;
 }
 
-Box::Box(const std::vector<std::shared_ptr<IFigure>>& objs)
+bool KDPlane::rayIntersect(const Ray ray, Point3D & intersection) const
 {
-    if (objs.size() == 0)
-        return;
-    long double xmin, xmax, ymin, ymax, zmin, zmax;
-    Box b = objs[0]->getBox();
-    xmin = b._A.x();
-    xmax = b._B.x();
-    ymin = b._A.y();
-    ymax = b._B.y();
-    zmin = b._A.z();
-    zmax = b._B.z();
-    for (int i = 1; i < objs.size(); ++i) {
-        Box d = objs[i]->getBox();
-        xmin = min(xmin, d._A.x());
-        xmax = max(xmax, d._B.x());
-        ymin = min(ymin, d._A.y());
-        ymax = max(ymax, d._B.y());
-        zmin = min(zmin, d._A.z());
-        zmax = max(zmax, d._B.z());
-    }
-    _A = Point3D(xmin, ymin, zmin);
-    _B = Point3D(xmax, ymax, zmax);
+    double d = distance(ray.r0());
+    int k = 0;
+    if (d > 0)
+        k = 1;
+    else if (d < 0)
+        k = -1;
+    if (ray.a() * n * k >= 0) 
+        return false;
+    intersection = ray.r0() + ray.a() * fabs(d / (ray.a() * n));
+    return true;
 }
+
+Point3D KDPlane::normal() const
+{
+    return n;
+}
+
+Axis KDPlane::getAxis() const
+{
+    return _axis;
+}
+
+double KDPlane::getCoord() const
+{
+    return _coord;
+}
+
+void KDPlane::setAxis(const Axis axis)
+{
+    _axis = axis;
+}
+
+void KDPlane::setCoord(const double coord)
+{
+    _coord = coord;
+}             
 
 Point3D Box::getA() const
 {
@@ -47,71 +76,38 @@ Point3D Box::getB() const
     return _B;
 }
 
-bool Box::intersect(const Ray ray) const
+void Box::setA(const Point3D A)
 {
-    if (ray.r0().x() >= _A.x()
-        && ray.r0().x() <= _B.x()
-        && ray.r0().y() >= _A.y()
-        && ray.r0().y() <= _B.y()
-        && ray.r0().z() >= _A.z()
-        && ray.r0().z() <= _B.z())
-        return true;
-
-    double t_near = DBL_MIN;
-    double t_far = DBL_MAX;
-    double t1, t2;
-
-    if (ray.a().x() != 0.0f) {
-        t1 = (_A.x() - ray.r0().x()) / ray.a().x();
-        t2 = (_B.x() - ray.r0().x()) / ray.a().x();
-        if (t1 > t2)
-            std::swap(t1, t2);
-        t_near = max(t1, t_near);
-        t_far = min(t2, t_far);
-        if (t_near > t_far)
-            return false;
-        if (t_far < 0)
-            return false;
-    }
-    if (ray.a().y() != 0.0f) {
-        t1 = (_A.y() - ray.r0().y()) / ray.a().y();
-        t2 = (_B.y() - ray.r0().y()) / ray.a().y();
-        if (t1 > t2)
-            std::swap(t1, t2);
-        t_near = max(t1, t_near);
-        t_far = min(t2, t_far);
-        if (t_near > t_far)
-            return false;
-        if (t_far < 0)
-            return false;
-    }
-    if (ray.a().z() != 0.0f) {
-        t1 = (_A.z() - ray.r0().z()) / ray.a().z();
-        t2 = (_B.z() - ray.r0().z()) / ray.a().z();
-        if (t1 > t2)
-            std::swap(t1, t2);
-        t_near = max(t1, t_near);
-        t_far = min(t2, t_far);
-        if (t_near >= t_far)
-            return false;
-        if (t_far < 0)
-            return false;
-    }
-    return (t_near < t_far && t_near >= 0);
+    _A = A;
 }
 
-int Box::longestaxis() const
+void Box::setB(const Point3D B)
+{
+    _B = B;
+}
+
+bool Box::hasPoint(const Point3D p) const
+{
+    if ((p.x() < _B.x() || isZero(p.x() - _B.x())) && (p.x() > _A.x() || isZero(p.x() - _A.x())) &&
+        (p.y() < _B.y() || isZero(p.y() - _B.y())) && (p.y() > _A.y() || isZero(p.y() - _A.y())) &&
+        (p.z() < _B.z() || isZero(p.z() - _B.z())) && (p.z() > _A.z() || isZero(p.z() - _A.z())))
+        return true;
+    return false;
+    
+}
+
+Axis Box::longestaxis() const
 {
     double x = _B.x() - _A.x();
     double y = _B.y() - _A.y();
     double z = _B.z() - _A.z();
     if (x >= y && x >= z)
-        return 0;
+        return Axis::x;
     if (y >= x && y >= z)
-        return 1;
+        return Axis::y;
     if (z >= x && z >= y)
-        return 2;
-    return 3;
+        return Axis::z;
+    return Axis::x;
 }
 
 double Box::longestlen() const
@@ -121,3 +117,54 @@ double Box::longestlen() const
     double z = _B.z() - _A.z();
     return max(x, y, z);
 }
+
+int Box::rayIntersection(const Ray ray, Point3D & first, Point3D & second) const
+{
+    double tn, tf;
+    tn = DBL_MIN;
+    tf = DBL_MAX;
+    Axis s[3];
+    s[0] = Axis::x;
+    s[1] = Axis::y;
+    s[2] = Axis::z;
+    for (int i = 0; i < 3; ++i) {
+        Axis axis = s[i];
+        double tnear, tfar;
+        findParams(_A.coordAxis(axis), _B.coordAxis(axis), 
+                    ray.r0().coordAxis(axis), ray.a().coordAxis(axis), 
+                    tnear, tfar);
+        tn = max(tn, tnear);
+        tf = min(tf, tfar);
+    }
+    if (tn >= tf || tf < 0.0f) {
+        return 0;
+    }
+    if (tn < 0.0f) {
+        first = ray.r0() + ray.a() * tf;
+        return 1;
+    }
+    first = ray.r0() + ray.a() * tn;
+    second = ray.r0() + ray.a() * tf;
+    return 2;
+}
+
+void Box::findParams(const double left, const double right, const double point, const double a, double & t1, double & t2) const
+{
+    if (a == 0) {
+        if (left <= point && right >= point) {
+            t1 = DBL_MIN;
+            t2 = DBL_MAX;
+        } else {
+            t1 = 1;
+            t2 = -1;
+        }
+    }
+    else {
+        t1 = (left - point) / a;
+        t2 = (right - point) / a;
+        if (t1 > t2) {
+            std::swap(t1, t2);
+        }
+    }
+}
+

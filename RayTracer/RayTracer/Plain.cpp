@@ -19,16 +19,6 @@ Plane::Plane(const Triangle & triangle)
     _D = -_A * a.x() - _B * a.y() - _C * a.z();
 }
 
-Plane::Plane(const Parallelogramm & paral)
-{
-    Point3D n = paral.normal();
-    _A = n.x();
-    _B = n.y();
-    _C = n.z();
-    Point3D a = paral.A();
-    _D = -_A * a.x() - _B * a.y() - _C * a.z();
-}
-
 Plane::Plane(const Quadrangle & quad)
 {
     Point3D n = quad.normal();

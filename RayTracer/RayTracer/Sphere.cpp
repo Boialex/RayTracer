@@ -1,15 +1,15 @@
 #include "Sphere.h"
 
-Sphere::Sphere(const long double reflection, const long double refraction, const Color color, const Point3D O, const long double r)
+Sphere::Sphere(const double reflect, const double refract, const Color color, const Point3D O, const double r)
 {
-    _reflection = reflection;
-    _refraction = refraction;
+    _reflect = reflect;
+    _refract = refract;
     _color = color;
     _r = r;
     _O = O;
 }
 
-long double Sphere::r() const
+double Sphere::r() const
 {
     return _r;
 }
@@ -19,14 +19,14 @@ Point3D Sphere::O() const
     return _O;
 }
 
-long double Sphere::reflection() const
+double Sphere::reflect() const
 {
-    return _reflection;
+    return _reflect;
 }
 
-long double Sphere::refraction() const
+double Sphere::refract() const
 {
-    return _refraction;
+    return _refract;
 }
 
 Color Sphere::color() const
@@ -34,7 +34,7 @@ Color Sphere::color() const
     return _color;
 }
 
-void Sphere::setRadius(const long double r)
+void Sphere::setRadius(const double r)
 {
     _r = r;
 }
@@ -44,40 +44,48 @@ void Sphere::setCenter(const Point3D O)
     _O = O;
 }
 
-void Sphere::setParams(const long double reflection, const long double refraction, const Color color)
+void Sphere::setParams(const double reflect, const double refract, const Color color)
 {
-    _reflection = reflection;
-    _refraction = refraction;
+    _reflect = reflect;
+    _refract = refract;
     _color = color;
 }
 
-bool Sphere::rayIntersect(const Ray & ray, Point3D & intersect) const
+bool Sphere::rayIntersect(const Ray & ray, IntersectionData & data)
 {
     if (ray.r0() == _O) {
-        intersect = _O + ray.a() * _r;
+        data.intersection = _O + ray.a() * _r;
+        data.obj = this;
+        data.intersects = true;
         return true;
     }
     Point3D s = _O - ray.r0();
-    long double cos = ray.a() * s / s.len();
-    long double D = pow(2 * s.len() * cos, 2) - 4 * (s.len() * s.len() - _r * _r);
+    double cos = ray.a() * s / s.len();
+    double D = pow(2 * s.len() * cos, 2) - 4 * (s.len() * s.len() - _r * _r);
     if (D < 0)
         return false;
     if (D == 0) {
-        long double x = s.len() * cos;
-        intersect = ray.r0() + ray.a() * x;
+        double x = s.len() * cos;
+        data.intersection = ray.r0() + ray.a() * x;
+        data.obj = this;
+        data.intersects = true;
         return true;
     }
-    long double x1 = s.len() * cos - sqrt(D) / 2;
-    long double x2 = s.len() * cos + sqrt(D) / 2;
+    double x1 = s.len() * cos - sqrt(D) / 2;
+    double x2 = s.len() * cos + sqrt(D) / 2;
     if (x1 < 0)
         if (x2 < 0)
             return false;
         else {
-            intersect = ray.r0() + ray.a() * x2;
+            data.intersection = ray.r0() + ray.a() * x2;
+            data.obj = this;
+            data.intersects = true;
             return true;
         }
     else {
-        intersect = ray.r0() + ray.a() * x1;
+        data.intersection = ray.r0() + ray.a() * x1;
+        data.obj = this;
+        data.intersects = true;
         return true;
     }
     return false;
@@ -85,17 +93,26 @@ bool Sphere::rayIntersect(const Ray & ray, Point3D & intersect) const
 
 Box Sphere::getBox() const
 {
-    long double xmin, xmax, ymin, ymax, zmin, zmax;
+    double xmin, xmax, ymin, ymax, zmin, zmax;
     xmin = _O.x() - _r;
     xmax = _O.x() + _r;
     ymin = _O.y() - _r;
     ymax = _O.y() + _r;
     zmin = _O.z() - _r;
     zmax = _O.z() + _r;
-    Box b;
-    b.A = Point3D(xmin, ymin, zmin);
-    b.B = Point3D(xmax, ymax, zmax);
-    return b;
+    if (isZero(xmax - xmin)) {
+        xmax += EPS;
+        xmin -= EPS;
+    }
+    if (isZero(ymax - ymin)) {
+        ymax += EPS;
+        ymin -= EPS;
+    }
+    if (isZero(zmax - zmin)) {
+        zmax += EPS;
+        zmin -= EPS;
+    }
+    return Box(Point3D(xmin, ymin, zmin), Point3D(xmax, ymax, zmax));
 }
 
 Point3D Sphere::normal(const Point3D & p) const

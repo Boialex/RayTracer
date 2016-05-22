@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Figure.h"
+//#include "HelpFunc.h"
 
 class Plane {
 public:
     Plane(long double A, long double B, long double C, long double D);
     Plane(const Triangle & triangle);
-    Plane(const Parallelogramm & paral);
     Plane(const Quadrangle & quad);
 
     Point3D normal() const;

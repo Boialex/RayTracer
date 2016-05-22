@@ -1,16 +1,18 @@
 #include "Triangle.h"
 #include "Plain.h"
-#include <>
 
-Triangle::Triangle(const long double reflection, const long double refraction, const Color color, 
+Triangle::Triangle(const double reflect, const double refract, const Color color, 
                     const Point3D A, const Point3D B, const Point3D C)
 {
     _A = A;
     _B = B;
     _C = C;
-    _reflection = reflection;
-    _refraction = refraction;
+    _reflect = reflect;
+    _refract = refract;
     _color = color;
+
+    n = (B - A) ^ (C - A);
+    n = n * (1.0 / n.len());
 }
 
 Point3D Triangle::A() const
@@ -29,14 +31,14 @@ Point3D Triangle::C() const
     return _C;
 }
 
-long double Triangle::reflection() const
+double Triangle::reflect() const
 {
-    return _reflection;
+    return _reflect;
 }
 
-long double Triangle::refraction() const
+double Triangle::refract() const
 {
-    return _refraction;
+    return _refract;
 }
 
 Color Triangle::color() const
@@ -64,29 +66,32 @@ void Triangle::setPoints(const Point3D A, const Point3D B, const Point3D C)
     _A = A;
     _B = B;
     _C = C;
+    n = (B - A) ^ (C - A);
+    n = n * (1.0 / n.len());
 }
 
-void Triangle::setParams(const long double reflection, const long double refraction, const Color color)
+void Triangle::setParams(const double reflect, const double refract, const Color color)
 {
-    _reflection = reflection;
-    _refraction = refraction;
+    _reflect = reflect;
+    _refract = refract;
     _color = color;
 }
 
-bool Triangle::rayIntersect(const Ray & ray, Point3D & intersect) const
+bool Triangle::rayIntersect(const Ray & ray, IntersectionData & data) 
 {
     Point3D A = _A;
     Point3D B = _B;
     Point3D C = _C;
-    Point3D n = normal();
     Plane myPlane(*this);
-    if (myPlane.rayIntersect(ray, intersect)) {
-        if (((B - A) ^ (intersect - A)) * n < 0)
+    if (myPlane.rayIntersect(ray, data.intersection)) {
+        if (((B - A) ^ (data.intersection - A)) * n < 0)
             return false;
-        if (((A - C) ^ (intersect - C)) * n < 0)
+        if (((A - C) ^ (data.intersection - C)) * n < 0)
             return false;
-        if (((C - B) ^ (intersect - B)) * n < 0)
+        if (((C - B) ^ (data.intersection - B)) * n < 0)
             return false;
+        data.obj = this;
+        data.intersects = true;
         return true;
     }
     return false;
@@ -94,25 +99,30 @@ bool Triangle::rayIntersect(const Ray & ray, Point3D & intersect) const
 
 Point3D Triangle::normal(const Point3D & p) const
 {
-    Point3D A = Point3D(_A);
-    Point3D B = Point3D(_B);
-    Point3D C = Point3D(_C);
-    Point3D n = (B - A) ^ (C - A);
-    return n * (1.0 / n.len());
+    return n;
 }
 
 Box Triangle::getBox() const
 {
-    long double xmin, xmax, ymin, ymax, zmin, zmax;
+    double xmin, xmax, ymin, ymax, zmin, zmax;
     xmin = min(_A.x(), _B.x(), _C.x());
     xmax = max(_A.x(), _B.x(), _C.x());
     ymin = min(_A.y(), _B.y(), _C.y());
     ymax = max(_A.y(), _B.y(), _C.y());
     zmin = min(_A.z(), _B.z(), _C.z());
     zmax = max(_A.z(), _B.z(), _C.z());
-    Box b;
-    b.A = Point3D(xmin, ymin, zmin);
-    b.B = Point3D(xmax, ymax, zmax);
-    return b;
+    if (isZero(xmax - xmin)) {
+        xmax += EPS;
+        xmin -= EPS;
+    }
+    if (isZero(ymax - ymin)) {
+        ymax += EPS;
+        ymin -= EPS;
+    }
+    if (isZero(zmax - zmin)) {
+        zmax += EPS;
+        zmin -= EPS;
+    }
+    return Box(Point3D(xmin, ymin, zmin), Point3D(xmax, ymax, zmax));
 }
 

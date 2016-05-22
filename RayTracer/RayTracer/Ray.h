@@ -13,4 +13,4 @@ public:
 private:
     Point3D _r0;
     Point3D _a;
-};
+};                                                      

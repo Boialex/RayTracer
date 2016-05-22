@@ -1,8 +1,14 @@
-#include "Scene.h"
+﻿#include "Scene.h"
 #include <fstream>
 #include <Windows.h>
 #include <string>
 #include <limits>
+#include <sstream>
+#include <map>
+
+#include <chrono>
+
+static const double LESSLIGHT = 10.0;
 
 int Scene::pixelsV() const
 {
@@ -14,137 +20,140 @@ int Scene::pixelsH() const
     return nHPixels;
 }
 
-void Scene::input()
+void Scene::render(const int vpixels, const int hpixels)
 {
-    lightConst = 1.1;
-    std::fstream in;
-    in.open("input.txt");
-    in >> _eye;
-    in >> _A >> _B >> _C >> _D;
-    in >> nVPixels >> nHPixels;
-    int nObjects;
-    in >> nObjects;
-    int reflection, refraction;
-    long double r;
-    Color color;
-    Point3D A, B, C, D;
-    Point3D borderA;
-    Point3D borderB;
-    std::string type;
-    //for (int i = 0; i < nObjects; ++i) {
-    while (in >> type) {
-        switch (type[0]) 
-        {
-            case 't':
-                in >> reflection >> refraction >> color;
-                in >> A >> B >> C;
-                objects.push_back(std::shared_ptr<IFigure>(createFigure(ht_triangle, 
-                                                reflection, refraction, color, A, 
-                                                B.x(), B.y(), B.z(), 
-                                                C.x(), C.y(), C.z())));
-                break;
-            case 's':
-                in >> reflection >> refraction >> color;
-                in >> r >> A;
-                objects.push_back(std::shared_ptr<IFigure>(createFigure(ht_sphere, reflection, refraction, color, A, r)));
-                break;
-            case 'r':
-                in >> reflection >> refraction >> color;
-                in >> A >> B >> C >> D;
-                objects.push_back(std::shared_ptr<IFigure>(createFigure(ht_quadrangle, 
-                                                reflection, refraction, color, A,
-                                                B.x(), B.y(), B.z(),
-                                                C.x(), C.y(), C.z(),
-                                                D.x(), D.y(), D.z())));
-                break;
-            case 'p':
-                in >> reflection >> refraction >> color;
-                in >> A >> B >> C >> D;
-                objects.push_back(std::shared_ptr<IFigure>(createFigure(ht_parallelogramm, 
-                                                reflection, refraction, color, A,
-                                                B.x(), B.y(), B.z(),
-                                                C.x(), C.y(), C.z(),
-                                                D.x(), D.y(), D.z())));
-                break;
-            default:
-                continue;
-        } 
+    t = new KDTree(objects);
+    std::cout << objects.size();
+    nVPixels = vpixels;
+    nHPixels = hpixels;
+    pixels.resize(vpixels);
+    for (int i = 0; i < vpixels; ++i) {
+        pixels[i].resize(hpixels); 
     }
-    Point3D pos(10, -2, 15);
-    suns.push_back(std::shared_ptr<Illuminant>(new Illuminant(pos, 1.0)));
-}
 
-void Scene::paint()
-{
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
+
     Point3D dx = (_B - _A) * (1.0 / nVPixels);
     Point3D dy = (_D - _A) * (1.0 / nHPixels);
-    Point3D intersect;
-
-    glBegin(GL_POINTS);
-    glPointSize(1.0 / max(nVPixels, nHPixels));
+    std::cout << std::endl;
     for (int i = 0; i < nVPixels; ++i) {
+        if (i == nVPixels / 4) {
+            end = std::chrono::system_clock::now();
+            long long time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            std::cout << "25% " << time << " ms" << std::endl;
+        }
+        if (i == nVPixels / 2) {
+            end = std::chrono::system_clock::now();
+            long long time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            std::cout << "50% " << time << " ms" << std::endl;
+        }
+        if (i == 3 * nVPixels / 4) {
+            end = std::chrono::system_clock::now();
+            long long time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            std::cout << "75% " << time << " ms" << std::endl;
+        }
         for (int j = 0; j < nHPixels; ++j) {
             Ray ray(_eye, Point3D(_A.x() + dx.x() * i + dy.x() * j, 
                                   _A.y() + dx.y() * i + dy.y() * j, 
                                   _A.z() + dx.z() * i + dy.z() * j));
+            IntersectionData data(false);
+            if (t->intersect(ray, data)) {
+                countColor(ray, data.intersection, data.obj, i, j);
+            } 
+            /*
             int nearest = 0;
             long double nearDist = DBL_MAX;
             bool any = false;
-            for (int k = 0; k < objects.size(); ++k) {
-                if (objects[k]->rayIntersect(ray, intersect)) {
+            IntersectionData cur(false);
+            for (size_t k = 0; k < objects.size(); ++k) {
+                if (objects[k]->rayIntersect(ray, cur)) {
                     any = true;
-                    if ((intersect - _eye).len() < nearDist) {
-                        nearDist = (intersect - _eye).len();
+                    if ((cur.intersection - _eye).len() < nearDist) {
+                        nearDist = (cur.intersection - _eye).len();
                         nearest = k;
                     }
                 }
             }
+            objects[nearest]->rayIntersect(ray, data);
             if (any) {
-                objects[nearest]->rayIntersect(ray, intersect);
-                Color color = objects[nearest]->color();
-                color.convertRGBToLab();
-                color.red = 0.1;
-                color.convertLabToRGB();
-                for (int v = 0; v < suns.size(); ++v) {
-                    Point3D beginRay;
-                    Point3D n = objects[nearest]->normal(Point3D());
-                    if (ray.a() * n > 0)
-                        beginRay = intersect - n * 0.1;
-                    else
-                        beginRay = intersect + n * 0.1;
-                    Ray tolight(beginRay, suns[v]->getPos());
-                    bool clear = true;
-                    for (int w = 0; w < objects.size(); ++w)
-                        if (objects[w]->rayIntersect(tolight, Point3D())) {
-                            clear = false;
-                            break;
-                        }
-
-                    color.convertRGBToLab();
-                    if (clear) {
-                        //std::cout << k << std::endl;
-                        long double dist = (suns[v]->getPos() - beginRay).len();
-                        double dif = 80.0 - color.red;
-                        color.red += dif * 100 * lightConst / pow(dist, 2)* pow(tolight.a() * n, 2);
-                    }
-                    color.convertLabToRGB();
-                }
-
-                glColor3f(color.red, color.green, color.blue);
-                glVertex2f(double(i) / nVPixels, double(j) / nHPixels);
+                countColor(ray, data.intersection, data.obj, i, j);
             }
+            */
+            //IntersectionData * current = &cur;  
+        }
+    }
+
+}
+
+void Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int i, int j)
+{
+    Color color = obj->color();
+    color.convertRGBToLab();
+
+    color.red /= LESSLIGHT;
+    double minlight = color.red;
+    double dif = minlight * (LESSLIGHT - 1);
+    
+    Point3D beginRay = intersection;
+    Point3D n = obj->normal(intersection);
+
+    if (ray.a() * n > 0)
+        beginRay = intersection - n * 0.001;
+    else
+        beginRay = intersection + n * 0.001;
+
+    double add = 0;
+    for (auto sun : suns) {
+        Ray tolight(beginRay, sun->getPos());
+        if ((tolight.a() * n) * (ray.a() * n) > 0)
+            continue;
+        bool clear = true;
+        IntersectionData  l(false);
+        if (!t->intersect(tolight, l) || (l.intersection - beginRay).len() > (sun->getPos() - beginRay).len()) {
+            long double dist = (sun->getPos() - beginRay).len();
+            add += dif * sun->getPower() / norm.power * pow(norm.distance, 2) / pow(dist, 2) * pow(tolight.a() * n, 2);
+        }
+    }
+    color.red = min(color.red + add, 100);
+
+    color.convertLabToRGB();
+    pixels[i][j] = color;
+}
+
+void Scene::paint()
+{
+    glBegin(GL_POINTS);
+    glPointSize(1.0 / max(nVPixels, nHPixels));
+    for (int i = 0; i < nVPixels; ++i) {
+        for (int j = 0; j < nHPixels; ++j) {
+            Color color = pixels[i][j];
+            glColor3f(color.red, color.green, color.blue);
+            glVertex2f((1.0 * i / nVPixels), (1.0 * (nHPixels - j) / nHPixels));
         }
     }
     glEnd();
 }
 
-Illuminant::Illuminant(const Point3D O, const double intensity)
+Illuminant::Illuminant(const Point3D O, const double power)
 {
     _O = O;
-    _intensity = intensity;
+    _power = power;
+}
+
+Illuminant::Illuminant()
+{
+    _O = Point3D();
+    _power = 0;
 }
 
 Point3D Illuminant::getPos() const
 {
     return _O;
 }
+
+double Illuminant::getPower() const
+{
+    return _power;
+}
+

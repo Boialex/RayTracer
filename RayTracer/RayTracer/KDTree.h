@@ -3,29 +3,43 @@
 #include <vector>
 #include <memory>
 
-static const double emptycost = 0;
+static const int MAXDEPTH = 15;
+
+struct ObjWithBox {
+    ObjWithBox(IFigure * obj, const Box * b) : object(obj), box(b) {}
+    IFigure* object;
+    const Box * box;
+};
+
+struct structForSort {
+    structForSort(const double newcoord, const ObjWithBox * b) : coord(newcoord), object(b) {}
+    double coord;
+    const ObjWithBox * object;
+    bool operator < (const structForSort & a) const;
+};
+
+struct Node {
+    void build(const std::vector<structForSort>::iterator & begin, const std::vector<structForSort>::iterator & end);
+    bool intersect(const Ray ray, IntersectionData & data) const;
+    bool intersectHere(const Ray ray, IntersectionData & data) const;
+
+    Node() : left(NULL), right(NULL) {}
+    void split(int h);
+
+    std::vector<ObjWithBox> objectsWithBox;
+    Box boundingBox;
+    KDPlane splittingPlane;
+    Node * left;
+    Node * right;
+};
 
 class KDTree {
 public:
-    KDTree(const std::vector<std::shared_ptr<IFigure>> & newobj);
-    bool hit(const Ray & ray, Point3D & intersection);
+    KDTree(const std::vector<IFigure*> & objects);
+    bool intersect(const Ray ray, IntersectionData & data) const;
 
 private:
-    struct KDNode {
-        KDNode();
-        long double findBorder(int axis, double & sah) const;
-        double distleft(int axis, long double border) const;
-        double distright(int axis, long double border) const;
-        void build();
-        bool hit(const Ray & ray, Point3D & intersection);
-        
-        double _border;
-        Box box;
-        std::unique_ptr<KDNode> left;
-        std::unique_ptr<KDNode> right;
-        std::vector<std::shared_ptr<IFigure>> obj;
-        //KDNode * build(const std::vector<std::shared_ptr<IFigure>> & newobj, const int depth);
-    };
-    
-    std::unique_ptr<KDNode> head;
+    Node * root;
+    const std::vector<IFigure*> & objects;
+    std::vector<Box> boxes;
 };
