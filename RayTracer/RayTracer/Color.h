@@ -8,6 +8,12 @@ struct Color {
                                                             green(1. * green / 255),
                                                             blue(1. * blue / 255) {};
     friend std::istream& operator>>(std::istream& is, Color& c);
+    friend Color operator+(const Color & a, const Color & b);
+    friend Color& operator+=(Color & a, const Color & b);
+    friend Color& operator*=(Color & a, const double b);
+    friend Color& operator/=(Color & a, const double b);
+    void cut();
+
     void convertRGBToXYZ();
     void convertRGBToLab();
 

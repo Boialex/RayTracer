@@ -1,5 +1,6 @@
 #include "Color.h"
 #include <iostream>
+#include"HelpFunc.h"
 
 std::istream & operator>>(std::istream & is, Color & c)
 {
@@ -10,6 +11,40 @@ std::istream & operator>>(std::istream & is, Color & c)
     c.blue = z / 255.;
     c.current = Color::ht_rgb;
     return is;
+}
+
+Color operator+(const Color & a, const Color & b)
+{ 
+    return Color(a.red + b.red, a.green + b.green, a.blue + b.blue);
+}
+
+Color& operator+=(Color & a, const Color & b)
+{
+    a.red += b.red;
+    a.green += b.green;
+    a.blue += b.blue;
+    return a;
+}
+
+Color& operator*=(Color & a, const double b)
+{
+    a.red *= b;
+    a.green *= b;
+    a.blue *= b;
+    return a;
+}
+
+Color& operator/=(Color & a, const double b)
+{
+    a.red /= b;
+    a.green /= b;
+    a.blue /= b;
+    return a;
+}
+
+void Color::cut()
+{
+    red = min(red, 100);
 }
 
 void Color::convertRGBToXYZ()

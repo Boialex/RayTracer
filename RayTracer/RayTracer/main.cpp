@@ -28,10 +28,10 @@ int main(int argc, char **argv)
     std::string s;
     //std::cout << "File name: ";
     //std::cin >> s;
-    int widht = 1600;
-    int height = 1200;
+    int widht = 1200;
+    int height = 720;
     //std::cin >> widht >> height;
-    Reader * reader = new Reader("spheres_pure.rt");
+    Reader * reader = new Reader("input.txt");
     std::ios::sync_with_stdio(false);
     reader->read(scene);
     delete reader;

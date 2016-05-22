@@ -32,7 +32,7 @@ public:
     friend class Reader;
 
 private:
-    void countColor(Ray & raty, Point3D & intersection, IFigure * obj, int i, int j);
+    Color countColor(Ray & raty, Point3D & intersection, IFigure * obj, int depth);
 
     struct Params {
         double reflect;

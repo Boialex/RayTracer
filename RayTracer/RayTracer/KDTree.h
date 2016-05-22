@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-static const int MAXDEPTH = 15;
+static const int MAXDEPTH = 16;
 
 struct ObjWithBox {
     ObjWithBox(IFigure * obj, const Box * b) : object(obj), box(b) {}

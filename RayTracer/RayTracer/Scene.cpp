@@ -8,7 +8,9 @@
 
 #include <chrono>
 
+static const int ANTIALIASING = 2;
 static const double LESSLIGHT = 10.0;
+static const int REFLECTIONS = 2;
 
 int Scene::pixelsV() const
 {
@@ -24,11 +26,11 @@ void Scene::render(const int vpixels, const int hpixels)
 {
     t = new KDTree(objects);
     std::cout << objects.size();
-    nVPixels = vpixels;
-    nHPixels = hpixels;
-    pixels.resize(vpixels);
-    for (int i = 0; i < vpixels; ++i) {
-        pixels[i].resize(hpixels); 
+    nVPixels = vpixels * ANTIALIASING;
+    nHPixels = hpixels * ANTIALIASING;
+    pixels.resize(nVPixels);
+    for (int i = 0; i < nVPixels; ++i) {
+        pixels[i].resize(nHPixels); 
     }
 
     std::chrono::time_point<std::chrono::system_clock> start, end;
@@ -59,7 +61,7 @@ void Scene::render(const int vpixels, const int hpixels)
                                   _A.z() + dx.z() * i + dy.z() * j));
             IntersectionData data(false);
             if (t->intersect(ray, data)) {
-                countColor(ray, data.intersection, data.obj, i, j);
+                pixels[i][j] = countColor(ray, data.intersection, data.obj, 0);
             } 
             /*
             int nearest = 0;
@@ -86,15 +88,8 @@ void Scene::render(const int vpixels, const int hpixels)
 
 }
 
-void Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int i, int j)
+Color Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int depth)
 {
-    Color color = obj->color();
-    color.convertRGBToLab();
-
-    color.red /= LESSLIGHT;
-    double minlight = color.red;
-    double dif = minlight * (LESSLIGHT - 1);
-    
     Point3D beginRay = intersection;
     Point3D n = obj->normal(intersection);
 
@@ -102,6 +97,15 @@ void Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int i, 
         beginRay = intersection - n * 0.001;
     else
         beginRay = intersection + n * 0.001;
+
+    Color color = obj->color();
+    double alpha = obj->reflect();
+
+    color.convertRGBToLab();
+
+    color.red /= LESSLIGHT;
+    double minlight = color.red;
+    double dif = minlight * (LESSLIGHT - 1);
 
     double add = 0;
     for (auto sun : suns) {
@@ -115,19 +119,44 @@ void Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int i, 
             add += dif * sun->getPower() / norm.power * pow(norm.distance, 2) / pow(dist, 2) * pow(tolight.a() * n, 2);
         }
     }
-    color.red = min(color.red + add, 100);
-
+    color.red += add;
+    color.cut();
     color.convertLabToRGB();
-    pixels[i][j] = color;
+    // std::cout << color.red;
+
+    if (depth < REFLECTIONS && alpha > EPS) {
+        color *= (1 - alpha);
+        //std::cout << color.red;
+        Point3D n = obj->normal(intersection);
+        double proj = ray.a() * n;
+        Point3D dir = n * (-2.0 * proj) + ray.a();
+        IntersectionData refl(false);
+        Ray mir(beginRay, beginRay + dir * 10);
+        if (t->intersect(ray, refl)) {
+            Color Y = countColor(mir, refl.intersection, refl.obj, depth + 1);
+            Y *= alpha;
+            color += Y;
+            //std::cout << color.red;
+        }
+    }
+    return color;
 }
 
 void Scene::paint()
 {
     glBegin(GL_POINTS);
     glPointSize(1.0 / max(nVPixels, nHPixels));
-    for (int i = 0; i < nVPixels; ++i) {
-        for (int j = 0; j < nHPixels; ++j) {
-            Color color = pixels[i][j];
+    for (int i = 0; i < nVPixels; i += ANTIALIASING) {
+        for (int j = 0; j < nHPixels; j += ANTIALIASING) {
+            Color color;
+            for (int u = 0; u < ANTIALIASING; ++u)
+                for (int v = 0; v < ANTIALIASING; ++v) {
+                    color += pixels[i + u][j + v];
+                    //std::cout << color.red;
+                }
+            //std::cout << color.red;
+            int n = ANTIALIASING * ANTIALIASING;
+            color /= n;
             glColor3f(color.red, color.green, color.blue);
             glVertex2f((1.0 * i / nVPixels), (1.0 * (nHPixels - j) / nHPixels));
         }
