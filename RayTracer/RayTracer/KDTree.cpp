@@ -6,13 +6,13 @@ bool structForSort::operator <(const structForSort & a) const
     return coord < a.coord;
 }
 
-KDTree::KDTree(const std::vector<IFigure*> & _objects) :objects(_objects), boxes()
+KDTree::KDTree(const std::vector<IFigure*> & objects) : _objects(objects), boxes()
 {
     if (_objects.size() == 0)
         return;
     boxes.reserve(_objects.size());
 
-    for (auto obj : objects) {
+    for (auto obj : _objects) {
         boxes.push_back(obj->getBox());
     }
     
@@ -34,7 +34,7 @@ KDTree::KDTree(const std::vector<IFigure*> & _objects) :objects(_objects), boxes
     root->boundingBox = Box(Point3D(xmin, ymin, zmin), Point3D(xmax, ymax, zmax));
     root->objectsWithBox.reserve(boxes.size());
     for (int i = 0; i < boxes.size(); ++i) {
-        root->objectsWithBox.push_back(ObjWithBox((objects[i]), &(boxes[i])));
+        root->objectsWithBox.push_back(ObjWithBox((_objects[i]), &(boxes[i])));
     }
     root->split(0);
 }
@@ -47,63 +47,56 @@ void Node::split(int h)
     Axis axis = boundingBox.longestaxis();
     double max = boundingBox.getB().coordAxis(axis);
     double min = boundingBox.getA().coordAxis(axis);
-    std::vector<structForSort> leftBorder, rightBorder;
-    leftBorder.reserve(objectsWithBox.size());
-    rightBorder.reserve(objectsWithBox.size());
+
+    std::vector<structForSort> sortLeftBorders, sortRightBorders;
+    sortLeftBorders.reserve(objectsWithBox.size());
+    sortRightBorders.reserve(objectsWithBox.size());
+
     for (int i = 0; i < objectsWithBox.size(); ++i) {
-        leftBorder.push_back(structForSort(objectsWithBox[i].box->getA().coordAxis(axis), &(objectsWithBox[i])));
-        rightBorder.push_back(structForSort(objectsWithBox[i].box->getB().coordAxis(axis), &(objectsWithBox[i])));
+        sortLeftBorders.push_back(structForSort(objectsWithBox[i].box->getA().coordAxis(axis), &(objectsWithBox[i])));
+        sortRightBorders.push_back(structForSort(objectsWithBox[i].box->getB().coordAxis(axis), &(objectsWithBox[i])));
     }
-    std::sort(leftBorder.begin(), leftBorder.end());
-    std::sort(rightBorder.begin(), rightBorder.end());
+    std::sort(sortLeftBorders.begin(), sortLeftBorders.end());
+    std::sort(sortRightBorders.begin(), sortRightBorders.end());
     
-    int p, q, n;
-    p = 0;
-    q = -1;
-    n = objectsWithBox.size();
-    double coord = min;
-    int toleft;
-    int toright;
-    int bestLeft = toleft = 0;
-    int bestRight = toright = n;
+    int i = 0, j = -1, n = objectsWithBox.size();
+    int toleft = 0, toright = n, bestLeft = 0, bestRight = n;
     bool previousLeft = true;
     double sah = n * (max - min);
-    double bestCoord = min, bestSah = sah;
-    while (p < n - 1 || q < n - 1) {
-        if (previousLeft == true) {
+    double bestCoord = min, bestSah = sah, coord = min;
+    while (i < n - 1 || j < n - 1) {
+        if (previousLeft) {
             ++toleft;
             previousLeft = false;
         }
-        if (p >= n - 1) {
-            ++q;
-            coord = rightBorder[q].coord;
-            --toright;
+        if (i >= n - 1) {
+            coord = sortRightBorders[++j].coord;
             previousLeft = false;
+            --toright;
         }
-        else 
-            if (q >= n - 1) {
-                ++p;
-                coord = leftBorder[p].coord;
+        else {
+            if (j >= n - 1) {
+                coord = sortLeftBorders[++i].coord;
                 previousLeft = true;
-            } else {
-                if (rightBorder[q + 1].coord < leftBorder[p + 1].coord) {
-                    ++q;
-                    coord = rightBorder[q].coord;
-                    --toright;
+            }
+            else {
+                if (sortRightBorders[j + 1].coord < sortLeftBorders[i + 1].coord) {
+                    coord = sortRightBorders[++j].coord;
                     previousLeft = false;
+                    --toright;
                 }
                 else {
-                    ++p;
-                    coord = leftBorder[p].coord;
+                    coord = sortLeftBorders[++i].coord;
                     previousLeft = true;
                 }
             }
+        }
         double splitSah = toright * (max - coord) + toleft * (coord - min);
-        if (splitSah < bestSah) {
-            bestSah = splitSah;
-            bestCoord = coord;
+        if (splitSah <  bestSah) {
             bestLeft = toleft;
             bestRight = toright;
+            bestCoord = coord;
+            bestSah = splitSah;
         }
     }
     if (bestSah >= (n - 3) * (max - min) || bestCoord == max || bestCoord == min) {
@@ -112,21 +105,21 @@ void Node::split(int h)
     coord = bestCoord;
     splittingPlane = KDPlane(axis, coord);
     toleft = 0;
-    while (toleft < n - 1 && leftBorder[toleft + 1].coord < bestCoord)
+    while (toleft < n - 1 && sortLeftBorders[toleft + 1].coord < bestCoord)
         ++toleft;
     toright = 0;
-    while (toright < n - 1 && bestCoord < rightBorder[n - toright - 1].coord)
+    while (toright < n - 1 && bestCoord < sortRightBorders[n - toright - 1].coord)
         ++toright;
     
     left = new Node();
-    left->build(leftBorder.begin(), leftBorder.begin() + (toleft + 1));
+    left->build(sortLeftBorders.begin(), sortLeftBorders.begin() + toleft + 1);
     Point3D splitNormal = splittingPlane.normal();
 
     splitNormal = splitNormal * (max - coord);
     left->boundingBox = Box(boundingBox.getA(), boundingBox.getB() - splitNormal);
     
     right = new Node();
-    right->build(rightBorder.end() - (toright + 1), rightBorder.end());
+    right->build(sortRightBorders.end() - toright - 1, sortRightBorders.end());
 
     splitNormal = splitNormal * ((coord - min) / (max - coord));
     right->boundingBox = Box(boundingBox.getA() + splitNormal, boundingBox.getB());
@@ -136,7 +129,7 @@ void Node::split(int h)
     right->split(h + 1);
 }
 
-void Node::build(const std::vector<structForSort>::iterator& begin, const std::vector<structForSort>::iterator& end)
+void Node::build(const std::vector<structForSort>::iterator & begin, const std::vector<structForSort>::iterator & end)
 {
     objectsWithBox.reserve(end - begin);
     for (auto i = begin; i < end; ++i) {
@@ -199,14 +192,13 @@ bool Node::intersectHere(const Ray ray, IntersectionData & data) const
     for (auto i : objectsWithBox) {
         IntersectionData l(false);
         if (i.object->rayIntersect(ray, l)) {
-            if (boundingBox.hasPoint(l.intersection)) {
+            if (boundingBox.hasPoint(l.intersection)) 
                 if (distance > (ray.r0() - l.intersection).len()) {
                     distance = (ray.r0() - l.intersection).len();
                     data.obj = i.object;
                     data.intersection = l.intersection;
                     data.intersects = true;
                 }
-            }
         }
     }
     return data.intersects;

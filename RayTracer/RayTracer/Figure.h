@@ -18,6 +18,7 @@ public:
     virtual Box getBox() const = 0;
     virtual void setParams(const double reflect, const double refracr, const Color color) = 0;
     virtual double reflect() const = 0;
+    virtual double refract() const = 0;
     virtual ~IFigure() {};
 };
 

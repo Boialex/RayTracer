@@ -3,16 +3,18 @@
 #include <vector>
 #include <memory>
 
-static const int MAXDEPTH = 16;
+static const int MAXDEPTH = 11;
 
 struct ObjWithBox {
     ObjWithBox(IFigure * obj, const Box * b) : object(obj), box(b) {}
+
     IFigure* object;
     const Box * box;
 };
 
 struct structForSort {
     structForSort(const double newcoord, const ObjWithBox * b) : coord(newcoord), object(b) {}
+
     double coord;
     const ObjWithBox * object;
     bool operator < (const structForSort & a) const;
@@ -40,6 +42,6 @@ public:
 
 private:
     Node * root;
-    const std::vector<IFigure*> & objects;
+    const std::vector<IFigure*> & _objects;
     std::vector<Box> boxes;
 };

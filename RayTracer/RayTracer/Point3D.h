@@ -3,7 +3,7 @@
 #include <iostream>
 #include <iomanip>
 
-const double EPS = 1E-9;
+const double EPS = 1E-6;
 
 enum Axis {
     x, y, z

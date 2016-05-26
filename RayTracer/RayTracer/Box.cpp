@@ -1,8 +1,6 @@
 #include "Box.h"
 #include <algorithm>
 
-
-
 KDPlane::KDPlane(const Axis axis, const double coord)
 {
     _axis = axis;
@@ -130,9 +128,7 @@ int Box::rayIntersection(const Ray ray, Point3D & first, Point3D & second) const
     for (int i = 0; i < 3; ++i) {
         Axis axis = s[i];
         double tnear, tfar;
-        findParams(_A.coordAxis(axis), _B.coordAxis(axis), 
-                    ray.r0().coordAxis(axis), ray.a().coordAxis(axis), 
-                    tnear, tfar);
+        findParams(_A.coordAxis(axis), _B.coordAxis(axis), ray.r0().coordAxis(axis), ray.a().coordAxis(axis), tnear, tfar);
         tn = max(tn, tnear);
         tf = min(tf, tfar);
     }
@@ -158,8 +154,7 @@ void Box::findParams(const double left, const double right, const double point, 
             t1 = 1;
             t2 = -1;
         }
-    }
-    else {
+    } else {
         t1 = (left - point) / a;
         t2 = (right - point) / a;
         if (t1 > t2) {

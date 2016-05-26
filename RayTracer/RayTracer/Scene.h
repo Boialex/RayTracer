@@ -33,6 +33,7 @@ public:
 
 private:
     Color countColor(Ray & raty, Point3D & intersection, IFigure * obj, int depth);
+    Color countLight(Ray & ray, Point3D & intersection, IFigure * obj);
 
     struct Params {
         double reflect;

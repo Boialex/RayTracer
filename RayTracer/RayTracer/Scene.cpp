@@ -8,9 +8,11 @@
 
 #include <chrono>
 
-static const int ANTIALIASING = 2;
+static const int ANTIALIASING = 1;
 static const double LESSLIGHT = 10.0;
-static const int REFLECTIONS = 2;
+static const int DEPTH = 5;
+static const bool REFRACT = true;
+static const bool REFLECT = true;
 
 int Scene::pixelsV() const
 {
@@ -25,7 +27,7 @@ int Scene::pixelsH() const
 void Scene::render(const int vpixels, const int hpixels)
 {
     t = new KDTree(objects);
-    std::cout << objects.size();
+    std::cout << "number of polygons: " << objects.size() << std::endl;
     nVPixels = vpixels * ANTIALIASING;
     nHPixels = hpixels * ANTIALIASING;
     pixels.resize(nVPixels);
@@ -38,7 +40,6 @@ void Scene::render(const int vpixels, const int hpixels)
 
     Point3D dx = (_B - _A) * (1.0 / nVPixels);
     Point3D dy = (_D - _A) * (1.0 / nHPixels);
-    std::cout << std::endl;
     for (int i = 0; i < nVPixels; ++i) {
         if (i == nVPixels / 4) {
             end = std::chrono::system_clock::now();
@@ -62,45 +63,25 @@ void Scene::render(const int vpixels, const int hpixels)
             IntersectionData data(false);
             if (t->intersect(ray, data)) {
                 pixels[i][j] = countColor(ray, data.intersection, data.obj, 0);
-            } 
-            /*
-            int nearest = 0;
-            long double nearDist = DBL_MAX;
-            bool any = false;
-            IntersectionData cur(false);
-            for (size_t k = 0; k < objects.size(); ++k) {
-                if (objects[k]->rayIntersect(ray, cur)) {
-                    any = true;
-                    if ((cur.intersection - _eye).len() < nearDist) {
-                        nearDist = (cur.intersection - _eye).len();
-                        nearest = k;
-                    }
-                }
-            }
-            objects[nearest]->rayIntersect(ray, data);
-            if (any) {
-                countColor(ray, data.intersection, data.obj, i, j);
-            }
-            */
-            //IntersectionData * current = &cur;  
+            }  
         }
     }
 
+    end = std::chrono::system_clock::now();
+    long long time = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "100% " << time << " ms" << std::endl;
 }
 
-Color Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int depth)
+Color Scene::countLight(Ray & ray, Point3D & intersection, IFigure * obj)
 {
     Point3D beginRay = intersection;
     Point3D n = obj->normal(intersection);
-
     if (ray.a() * n > 0)
-        beginRay = intersection - n * 0.001;
+        beginRay = intersection - n * EPS;
     else
-        beginRay = intersection + n * 0.001;
+        beginRay = intersection + n * EPS;
 
-    Color color = obj->color();
-    double alpha = obj->reflect();
-
+    Color color = obj->color(); 
     color.convertRGBToLab();
 
     color.red /= LESSLIGHT;
@@ -122,24 +103,65 @@ Color Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int de
     color.red += add;
     color.cut();
     color.convertLabToRGB();
-    // std::cout << color.red;
+    return color;
+}
 
-    if (depth < REFLECTIONS && alpha > EPS) {
+Color Scene::countColor(Ray & ray, Point3D & intersection, IFigure * obj, int depth)
+{
+    Color color = Color();
+    if (depth > DEPTH)
+        return color;
+    bool innerReflection = false;
+    double alpha = obj->reflect();
+    double gamma = obj->refract();
+    Point3D n = obj->normal(intersection);
+    Point3D beginRay = intersection;
+    if (REFRACT && gamma > EPS) {
+        if (ray.a() * n > 0)
+            beginRay = intersection + n * EPS;
+        else {
+            beginRay = intersection - n * EPS;
+            gamma = 1.0 / gamma;
+        }
+        Point3D alongproj = n * (ray.a() * n);
+        Point3D transproj = ray.a() - alongproj;
+        double angle = asin(transproj.len()) * gamma;
+        if (fabs(angle) >= 1) {
+            innerReflection = true;
+        } else {
+            angle = asin(angle);
+            transproj = transproj * (alongproj.len() / transproj.len() * tan(angle));
+            Ray refractRay(beginRay, beginRay + alongproj + transproj);
+            IntersectionData refr(false);
+            if (t->intersect(refractRay, refr))
+                return countColor(refractRay, refr.intersection, refr.obj, depth + 1);
+            return Color();
+        }
+    }
+    if (innerReflection)
+        alpha = 1;
+    if (REFLECT && alpha > EPS) {
+        color = countLight(ray, intersection, obj);
+        
+        if (ray.a() * n > 0)
+            beginRay = intersection - n * EPS;
+        else
+            beginRay = intersection + n * EPS;
+        
         color *= (1 - alpha);
-        //std::cout << color.red;
         Point3D n = obj->normal(intersection);
         double proj = ray.a() * n;
         Point3D dir = n * (-2.0 * proj) + ray.a();
         IntersectionData refl(false);
         Ray mir(beginRay, beginRay + dir * 10);
-        if (t->intersect(ray, refl)) {
+        if (t->intersect(mir, refl)) {
             Color Y = countColor(mir, refl.intersection, refl.obj, depth + 1);
             Y *= alpha;
             color += Y;
-            //std::cout << color.red;
         }
+        return color;
     }
-    return color;
+    return countLight(ray, intersection, obj);
 }
 
 void Scene::paint()
@@ -152,9 +174,7 @@ void Scene::paint()
             for (int u = 0; u < ANTIALIASING; ++u)
                 for (int v = 0; v < ANTIALIASING; ++v) {
                     color += pixels[i + u][j + v];
-                    //std::cout << color.red;
                 }
-            //std::cout << color.red;
             int n = ANTIALIASING * ANTIALIASING;
             color /= n;
             glColor3f(color.red, color.green, color.blue);
@@ -186,3 +206,24 @@ double Illuminant::getPower() const
     return _power;
 }
 
+
+/*
+int nearest = 0;
+long double nearDist = DBL_MAX;
+bool any = false;
+IntersectionData cur(false);
+for (size_t k = 0; k < objects.size(); ++k) {
+if (objects[k]->rayIntersect(ray, cur)) {
+any = true;
+if ((cur.intersection - _eye).len() < nearDist) {
+nearDist = (cur.intersection - _eye).len();
+nearest = k;
+}
+}
+}
+objects[nearest]->rayIntersect(ray, data);
+if (any) {
+countColor(ray, data.intersection, data.obj, i, j);
+}
+*/
+//IntersectionData * current = &cur; 
